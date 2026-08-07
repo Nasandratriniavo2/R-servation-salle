@@ -1,60 +1,66 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { getUsers } from './db.js'
-import { getCurrentUserId, setCurrentUserId } from './store.js'
-import { useDBVersion } from './useStore.js'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { api, getToken, setToken } from './api.js'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const version = useDBVersion()
-  const [users, setUsers] = useState([])
+  const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        setLoading(true)
-        const list = await getUsers()
-        if (!cancelled) {
-          setUsers(list)
-          setError(null)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error('[Auth] Impossible de charger les utilisateurs :', err)
-          setError(err.message || 'Erreur de connexion a la base')
-          setUsers([])
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+  const loadMe = useCallback(async () => {
+    const token = getToken()
+    if (!token) {
+      setCurrentUser(null)
+      setLoading(false)
+      return
     }
-  }, [version])
+    try {
+      setLoading(true)
+      const data = await api.get('/api/auth/me')
+      setCurrentUser(data.user)
+      setError(null)
+    } catch (err) {
+      console.error('[Auth] Session invalide :', err)
+      setToken(null)
+      setCurrentUser(null)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const currentUserId = getCurrentUserId()
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || null
+  useEffect(() => {
+    loadMe()
+  }, [loadMe])
 
-  const switchUser = (userId) => {
-    setCurrentUserId(userId)
+  const login = async (email, password) => {
+    const data = await api.post('/api/auth/login', { email, password })
+    setToken(data.token)
+    setCurrentUser(data.user)
+    setError(null)
+    return data.user
+  }
+
+  const logout = () => {
+    setToken(null)
+    setCurrentUser(null)
   }
 
   const value = useMemo(
     () => ({
       currentUser,
-      users,
-      switchUser,
       loading,
       error,
+      login,
+      logout,
+      refresh: loadMe,
+      isAuthenticated: Boolean(currentUser),
       isAdmin: currentUser?.role === 'admin',
       isEnseignant: currentUser?.role === 'enseignant',
       isEtudiant: currentUser?.role === 'etudiant',
     }),
-    [currentUser, users, loading, error],
+    [currentUser, loading, error, loadMe],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

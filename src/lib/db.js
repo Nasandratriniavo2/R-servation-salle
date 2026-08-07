@@ -138,9 +138,9 @@ export async function getPendingReservations() {
  */
 export async function createReservation({ roomId, user, titre, date, heureDebut, heureFin }) {
   try {
+    // L'API utilise le JWT pour identifier l'utilisateur (user reste utile pour l'affichage local)
     const result = await api.post('/api/reservations', {
       roomId,
-      user,
       titre,
       date,
       heureDebut,
@@ -178,7 +178,7 @@ export async function createReservation({ roomId, user, titre, date, heureDebut,
 
 export async function validateReservation(reservationId, adminUser) {
   try {
-    const result = await api.post(`/api/reservations/${reservationId}/validate`, { adminUser })
+    const result = await api.post(`/api/reservations/${reservationId}/validate`, {})
     notifyDataChange()
     return result
   } catch (err) {
@@ -190,7 +190,6 @@ export async function validateReservation(reservationId, adminUser) {
 export async function rejectReservation(reservationId, adminUser, motif = '') {
   try {
     const result = await api.post(`/api/reservations/${reservationId}/reject`, {
-      adminUser,
       motif,
     })
     notifyDataChange()
@@ -203,7 +202,7 @@ export async function rejectReservation(reservationId, adminUser, motif = '') {
 
 export async function cancelReservation(reservationId, byUser) {
   try {
-    const result = await api.post(`/api/reservations/${reservationId}/cancel`, { byUser })
+    const result = await api.post(`/api/reservations/${reservationId}/cancel`, {})
     notifyDataChange()
     return result
   } catch (err) {

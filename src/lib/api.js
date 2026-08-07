@@ -1,16 +1,30 @@
 /**
  * Client HTTP vers l'API Express (MySQL).
- * En dev, Vite proxy /api -> http://localhost:3001
+ * Envoie automatiquement le JWT si present.
  */
 const BASE = import.meta.env.VITE_API_URL || ''
+const TOKEN_KEY = 'sallelibre_token'
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  else localStorage.removeItem(TOKEN_KEY)
+}
 
 async function request(path, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+  }
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
     ...options,
+    headers,
   })
 
   let body = null
@@ -40,5 +54,7 @@ export const api = {
     request(path, { method: 'POST', body: JSON.stringify(data ?? {}) }),
   put: (path, data) =>
     request(path, { method: 'PUT', body: JSON.stringify(data ?? {}) }),
+  patch: (path, data) =>
+    request(path, { method: 'PATCH', body: JSON.stringify(data ?? {}) }),
   delete: (path) => request(path, { method: 'DELETE' }),
 }
